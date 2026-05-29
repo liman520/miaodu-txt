@@ -1,4 +1,4 @@
-# 秒读课堂 v2.4.0
+# 秒读课堂 v2.5.0
 
 > 文章采集与发布管理系统 — 自动化采集、智能审核、一键发布
 
@@ -81,6 +81,43 @@
 - 首次登录自动创建管理员账号
 - 登录状态本地持久化
 - 支持修改密码（旧密码验证 + 新密码确认）
+
+---
+
+## v2.5.0 升级说明
+
+本次从 v2.4 升级到 v2.5，重点优化 AI 纠错稳定性、RESTful 规范修复、任务日志补全。
+
+### 🔧 后端优化
+
+| 项目 | 原有问题 | v2.5 改进 |
+|------|----------|-----------|
+| AI 纠错超时 | 超时 30 秒，网络波动时频繁失败 | 默认超时提升至 60 秒，支持配置 `timeout` |
+| AI 纠错重试 | 超时后直接失败，无重试机制 | 新增重试机制（默认 2 次），指数退避，4xx 错误不重试 |
+| 恢复接口规范 | `GET /api/articles/{id}/restore`（GET 请求执行写操作） | 改为 `POST /api/articles/{id}/restore`（RESTful 规范） |
+| 手动录入日志 | 手动录入文章不写入任务日志 | 录入操作自动写入 `task_logs`（type=manual_add） |
+| 审核操作日志 | 审核通过/拒绝不写入任务日志 | 审核操作自动写入 `task_logs`（type=review） |
+| 删除操作日志 | 删除文章不写入任务日志 | 删除操作自动写入 `task_logs`（type=delete） |
+| 恢复操作日志 | 恢复文章不写入任务日志 | 恢复操作自动写入 `task_logs`（type=restore） |
+| 版本号 | v2.4.0 | 升级至 v2.5.0 |
+
+### 📁 变更文件清单
+
+| 文件 | 变更说明 |
+|------|----------|
+| `app/core/ai_corrector.py` | 重写：超时提升至 60s，新增重试机制（指数退避），错误分类处理 |
+| `app/routes/api.py` | 修改：恢复接口 GET→POST，新增 4 类任务日志写入 |
+| `app/main.py` | 修改：版本号升级至 v2.5.0 |
+| `config.yaml` | 修改：AI 纠错超时 60s，新增 max_retries: 2，版本号 v2.5.0 |
+| `README.md` | 修改：新增 v2.5.0 更新说明 |
+
+### ⚙️ 新增配置项
+
+```yaml
+ai_correction:
+  max_retries: 2    # AI 纠错最大重试次数（新增）
+  timeout: 60       # 超时时间（从 30 调整为 60）
+```
 
 ---
 
@@ -304,7 +341,7 @@ miaodu-publisher/
 | POST | `/api/articles/{id}/review` | 审核文章 | `{ status: "approved"/"rejected", reject_reason }` |
 | POST | `/api/articles/batch-review` | 批量审核 | `{ ids: [1,2,3], status, reject_reason }` |
 | DELETE | `/api/articles/{id}` | 删除（移入回收站） | — |
-| GET | `/api/articles/{id}/restore` | 从回收站恢复 | — |
+| POST | `/api/articles/{id}/restore` | 从回收站恢复 | — |
 | POST | `/api/articles/manual` | 手动录入 | `{ title, content, category, summary }` |
 
 ### 采集源管理
@@ -425,7 +462,8 @@ categories:                     # 文章分类列表
 ai_correction:                  # AI 纠错（可选）
   enabled: false
   provider: deepseek           # deepseek / mimo
-  timeout: 30
+  timeout: 60                  # 超时时间（秒）
+  max_retries: 2               # 最大重试次数
   deepseek:
     api_url: ''
     api_key: ''

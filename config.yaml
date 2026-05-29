@@ -9,14 +9,15 @@ ai_correction:
     api_url: https://api.xiaomimimo.com/v1/chat/completions
     model: mimo-v2-pro
   provider: mimo
-  timeout: 30
+  max_retries: 2
+  timeout: 60
 app:
   debug: false
   host: 127.0.0.1
   name: 秒读课堂采集发布系统
   port: 8080
   secret_key: 2f18445bcd5928a62fac20c32965a1d20fb2f2048e9f817cf00da39bc69a0b5b
-  version: 2.4.0
+  version: 2.5.0
 categories:
 - daily_max: 5
   daily_min: 2

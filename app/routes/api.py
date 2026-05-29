@@ -272,6 +272,15 @@ async def create_article(data: ArticleCreate, request: Request):
         session.flush()
         new_id = new_article.id
 
+        # 写入任务日志
+        log = TaskLog(
+            task_type="manual_add",
+            status="success" if passed else "rejected",
+            message=f"手动录入: {data.title[:30]}",
+            detail=review_log[:200],
+        )
+        session.add(log)
+
         if passed:
             article_data["content"] = corrected_content
             archiver.archive_article(article_data)
@@ -300,6 +309,9 @@ async def review_article(article_id: int, data: ReviewAction, request: Request):
         if data.action == "approve":
             article.status = ArticleStatus.APPROVED.value
             article.updated_at = datetime.utcnow()
+            log = TaskLog(task_type="review", status="approved",
+                          message=f"审核通过: {article.title[:30]}", detail=f"article_id={article_id}")
+            session.add(log)
             return {"message": "文章已通过审核", "status": "approved"}
 
         elif data.action == "reject":
@@ -307,6 +319,9 @@ async def review_article(article_id: int, data: ReviewAction, request: Request):
             article.status = ArticleStatus.REJECTED.value
             article.reject_reason = data.reason
             article.updated_at = datetime.utcnow()
+            log = TaskLog(task_type="review", status="rejected",
+                          message=f"审核拒绝: {article.title[:30]}", detail=f"原因: {data.reason[:50]}")
+            session.add(log)
             return {"message": "文章已驳回并移入回收站", "status": "rejected"}
 
         else:
@@ -338,12 +353,15 @@ async def delete_article(article_id: int, request: Request):
         archiver.move_to_recycle(
             article.id, article.title, article.content, "用户删除"
         )
+        log = TaskLog(task_type="delete", status="success",
+                      message=f"删除文章: {article.title[:30]}", detail=f"article_id={article_id}")
+        session.add(log)
         session.delete(article)
     return {"message": "文章已移入回收站"}
 
 
-@router.get("/articles/{article_id}/restore")
-async def restore_article(article_id: int):
+@router.post("/articles/{article_id}/restore")
+async def restore_article(article_id: int, request: Request):
     """从回收站恢复文章"""
     from app.core.archiver import ArticleArchiver
     archiver = ArticleArchiver()
@@ -361,7 +379,18 @@ async def restore_article(article_id: int):
         )
         session.add(new_article)
         session.flush()
-        return {"id": new_article.id, "message": "文章已恢复，状态重置为待审核"}
+        new_id = new_article.id
+
+        # 写入任务日志
+        log = TaskLog(
+            task_type="restore",
+            status="success",
+            message=f"文章已恢复: {result['title'][:30]}",
+            detail=f"原ID={article_id}, 新ID={new_id}",
+        )
+        session.add(log)
+
+        return {"id": new_id, "message": "文章已恢复，状态重置为待审核"}
 
 
 # ========== 采集源路由 ==========

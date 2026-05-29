@@ -246,14 +246,14 @@ async def lifespan(app: FastAPI):
     ai_corrector = AICorrector(ai_cfg)
     app.state.reviewer = ContentReviewer(ai_corrector=ai_corrector)
     logger.info(f'AI纠错: {"已启用" if ai_corrector.enabled else "未启用"} (provider: {ai_corrector.provider})')
-    logger.info('秒读课堂 v2.4.0 启动完成')
+    logger.info('秒读课堂 v2.5.0 启动完成')
     logger.info(f'数据库: {db_path}')
     logger.info(f'监听: {cfg.get("app.host", "127.0.0.1")}:{cfg.get("app.port", 8080)}')
     yield
     logger.info('秒读课堂关闭')
 
 
-app = FastAPI(title='秒读课堂采集发布系统', version='2.4.0', lifespan=lifespan)
+app = FastAPI(title='秒读课堂采集发布系统', version='2.5.0', lifespan=lifespan)
 
 config = ConfigManager()
 
