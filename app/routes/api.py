@@ -1,4 +1,4 @@
-"""API 路由 - v2.3.1 修复版（public_router 注册 + 字段对齐 + 发布状态追踪）"""
+"""API 路由 - v2.4.0 修复版（public_router 注册 + 字段对齐 + 发布状态追踪）"""
 
 import html
 import logging
@@ -327,14 +327,41 @@ async def batch_review(data: BatchReviewAction, request: Request):
 
 
 @router.delete("/articles/{article_id}")
-async def delete_article(article_id: int):
-    """删除文章"""
+async def delete_article(article_id: int, request: Request):
+    """删除文章（移入回收站）"""
+    archiver = request.app.state.archiver
     with get_session() as session:
         article = session.query(Article).filter(Article.id == article_id).first()
         if not article:
             raise HTTPException(status_code=404, detail="文章不存在")
+        # 先移入回收站再删除
+        archiver.move_to_recycle(
+            article.id, article.title, article.content, "用户删除"
+        )
         session.delete(article)
-    return {"message": "文章已删除"}
+    return {"message": "文章已移入回收站"}
+
+
+@router.get("/articles/{article_id}/restore")
+async def restore_article(article_id: int):
+    """从回收站恢复文章"""
+    from app.core.archiver import ArticleArchiver
+    archiver = ArticleArchiver()
+    result = archiver.restore_from_recycle(article_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="回收站中未找到该文章")
+    # 重新创建文章记录
+    with get_session() as session:
+        new_article = Article(
+            title=result["title"],
+            content=result["content"],
+            category=result.get("category", ""),
+            status="pending",
+            source_name="回收站恢复",
+        )
+        session.add(new_article)
+        session.flush()
+        return {"id": new_article.id, "message": "文章已恢复，状态重置为待审核"}
 
 
 # ========== 采集源路由 ==========
@@ -446,6 +473,22 @@ async def get_schedules(request: Request):
     if scheduler:
         return {"jobs": scheduler.get_jobs_info()}
     return {"jobs": []}
+
+
+# ========== 系统信息路由 ==========
+
+@router.get("/system/info")
+async def system_info(request: Request):
+    """系统信息"""
+    cfg = request.app.state.config
+    return {
+        "name": cfg.get("app.name", "秒读课堂"),
+        "version": cfg.get("app.version", "2.3.0"),
+        "platform_url": cfg.get("platform.url", ""),
+        "database_path": cfg.get("database.path", "./data/miaodu.db"),
+        "ai_correction_enabled": cfg.get("ai_correction.enabled", False),
+        "ai_correction_provider": cfg.get("ai_correction.provider", ""),
+    }
 
 
 # ========== 回收站路由 ==========

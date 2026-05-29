@@ -1,4 +1,4 @@
-# 秒读课堂 v2.3.0
+# 秒读课堂 v2.4.0
 
 > 文章采集与发布管理系统 — 自动化采集、智能审核、一键发布
 
@@ -99,7 +99,7 @@
 | 循环导入 | `api.py` 从 `main.py` 导入采集/发布函数，存在循环依赖 | 抽离到独立的 `services.py` 模块，彻底解耦 |
 | 平台URL配置 | `ConfigUpdate` 模型不支持 `platform_url` 字段 | 完整支持所有配置字段的更新 |
 | 文章恢复 | 无恢复接口 | 新增 `GET /api/articles/{id}/restore` 端点 |
-| 版本号 | v2.2.0 | 升级至 v2.3.0 |
+| 版本号 | v2.2.0 | 升级至 v2.4.0 |
 
 ### 🎨 前端全面重写
 
@@ -151,12 +151,66 @@
 | `app/core/collector.py` | 重写 | 文章采集引擎 |
 | `app/core/publisher.py` | 重写 | 文章发布引擎 |
 | `app/routes/api.py` | 重写 | 20个 API 端点，新增恢复/批量/手动录入 |
-| `app/main.py` | 重写 | v2.3.0 入口，asyncio 生命周期 |
+| `app/main.py` | 重写 | v2.4.0 入口，asyncio 生命周期 |
 | `app/templates/index.html` | 重写 | 566行，完整管理后台页面 |
 | `web/css/style.css` | 重写 | 866行，Premium 设计系统 |
 | `web/js/app.js` | 重写 | 894行，完整前端交互逻辑 |
-| `config.yaml` | 修改 | 版本号升级为 2.3.0 |
+| `config.yaml` | 修改 | 版本号升级为 2.4.0 |
 | `README.md` | 新增 | 项目说明文档 |
+
+## v2.4 升级说明
+
+本次从 v2.3 升级到 v2.4，重点实现浏览器自动化发布、站点专用采集器、前端全面重设计。
+
+### 🔧 后端修复与新增
+
+| 项目 | 原有问题 | v2.4 改进 |
+|------|----------|-----------|
+| 发布器 | HTTP 模拟发布（注释代码） | 基于 Playwright 的浏览器自动化发布，模拟真人操作全流程 |
+| 采集器 | 通用爬虫，无站点适配 | 新增光明网/新华网/人民网/光明时评专用解析器 |
+| 删除功能 | 直接物理删除，不进回收站 | 删除前自动归档到回收站 |
+| 恢复功能 | 不存在 | 新增 `GET /api/articles/{id}/restore` 恢复接口 |
+| 系统信息 | 不存在 | 新增 `GET /api/system/info` 接口 |
+| 发布清理 | 浏览器资源不释放 | 发布完成后自动关闭浏览器 |
+
+### 🎨 前端全面重设计
+
+**设计语言升级：**
+- 深靛蓝渐变侧边栏 + 磨砂玻璃顶栏
+- 登录页背景光晕动画 + 弹入式卡片
+- 统一 Inter 字体体系
+- CSS 自定义属性全局主题管理
+
+**新增页面：**
+- 采集任务独立页面（进度条 + 流光动画 + 实时统计 + 滚动日志）
+- 发布任务独立页面（同采集任务，带成功/失败计数）
+
+**交互改进：**
+- 侧边栏导航改为 button 元素，移动端变抽屉
+- 状态徽章统一为 `status-badge` 组件
+- Toast 通知右侧滑入 + 滑出动画
+- 表格行悬停高亮 + 标题可点击预览
+- 统计卡片带彩色图标 + 悬停上浮
+
+**响应式：**
+- 1024px — 侧边栏收起为抽屉，顶部显示汉堡菜单
+- 768px — 表单单列布局，模态框全宽
+
+### 📁 新增/变更文件清单
+
+| 文件 | 状态 | 说明 |
+|------|------|------|
+| `app/core/publisher.py` | 重写 | Playwright 浏览器自动化发布 |
+| `app/core/collector.py` | 重写 | 站点专用解析器 + 智能链接过滤 |
+| `app/core/archiver.py` | 修改 | 新增 `restore_from_recycle()` |
+| `app/routes/api.py` | 修改 | 修复删除、新增恢复/系统信息接口 |
+| `app/core/services.py` | 修改 | 发布后自动关闭浏览器 |
+| `app/templates/index.html` | 重写 | 12 个页面组件，全新结构 |
+| `web/css/style.css` | 重写 | Linear × Apple Settings 设计系统 |
+| `web/js/app.js` | 重写 | 采集/发布独立页面 + 实时轮询 |
+| `install.bat` | 新增 | Windows 一键初始化脚本 |
+| `start.bat` | 新增 | Windows 一键启动脚本 |
+| `requirements.txt` | 修改 | 新增 playwright 依赖 |
 
 ---
 
@@ -397,6 +451,7 @@ ai_correction:                  # AI 纠错（可选）
 | 加密 | cryptography (Fernet) |
 | 模板 | Jinja2 |
 | 前端 | 原生 HTML/CSS/JS |
+| 浏览器自动化 | Playwright (Chromium) |
 | 字体 | Inter (Google Fonts) |
 | 设计语言 | Linear × Apple Settings |
 

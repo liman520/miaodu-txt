@@ -1,4 +1,4 @@
-"""业务服务层 - v2.3.1（发布状态追踪 + 停止支持）"""
+"""业务服务层 - v2.4.0（发布状态追踪 + 停止支持）"""
 
 import logging
 import asyncio
@@ -211,3 +211,9 @@ async def do_publish(app):
     publish_state.finish(success=not publish_state.should_stop())
     publish_state.add_log(f"发布任务结束（耗时 {duration:.1f} 秒）", "info")
     logger.info(f"=== 发布任务完成 (耗时 {duration:.1f}s) ===")
+
+    # 发布完成后关闭浏览器
+    try:
+        await publisher.cleanup()
+    except Exception:
+        pass

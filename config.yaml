@@ -16,7 +16,7 @@ app:
   name: 秒读课堂采集发布系统
   port: 8080
   secret_key: 2f18445bcd5928a62fac20c32965a1d20fb2f2048e9f817cf00da39bc69a0b5b
-  version: 2.3.0
+  version: 2.4.0
 categories:
 - daily_max: 5
   daily_min: 2

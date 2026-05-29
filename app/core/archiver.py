@@ -5,7 +5,7 @@ import json
 import logging
 import shutil
 from datetime import datetime
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +112,43 @@ class ArticleArchiver:
                 stats["total_files"] += len(files)
                 stats["total_dirs"] += 1
         return stats
+
+    def restore_from_recycle(self, article_id: int) -> Optional[Dict]:
+        """从回收站恢复指定文章"""
+        if not os.path.exists(self.recycle_dir):
+            return None
+        for date_dir in os.listdir(self.recycle_dir):
+            date_path = os.path.join(self.recycle_dir, date_dir)
+            if not os.path.isdir(date_path):
+                continue
+            for filename in os.listdir(date_path):
+                if not filename.startswith(f"{article_id}_"):
+                    continue
+                filepath = os.path.join(date_path, filename)
+                try:
+                    with open(filepath, "r", encoding="utf-8") as f:
+                        text = f.read()
+                    # 解析回收站文件
+                    lines = text.split("\n")
+                    title = ""
+                    content_start = 0
+                    for i, line in enumerate(lines):
+                        if line.startswith("标题:"):
+                            title = line[3:].strip()
+                        if line.startswith("=" * 20):
+                            content_start = i + 2
+                            break
+                    content = "\n".join(lines[content_start:]).strip() if content_start > 0 else text
+                    # 删除回收站文件
+                    os.remove(filepath)
+                    # 如果日期目录空了，也删掉
+                    if not os.listdir(date_path):
+                        os.rmdir(date_path)
+                    return {"title": title, "content": content, "category": ""}
+                except Exception as e:
+                    logger.error(f"恢复文章失败 {filepath}: {e}")
+                    return None
+        return None
 
     def _format_article(self, article: dict) -> str:
         return f"标题: {article.get('title', '')}\n作者: {article.get('author', '')}\n板块: {article.get('category', '')}\n来源: {article.get('source_name', '')} ({article.get('source_url', '')})\n字数: {article.get('word_count', 0)}\n归档时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n{'=' * 50}\n\n{article.get('content', '')}\n"

@@ -6,3 +6,10 @@ recycle_bin/
 *.db
 *.yaml.tmp
 .venv/
+venv/
+data/
+archives/
+recycle_bin/
+chrome_data/
+__pycache__/
+*.pyc

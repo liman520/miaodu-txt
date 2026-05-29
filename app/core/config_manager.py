@@ -45,7 +45,7 @@ class ConfigManager:
     def _create_default_config(self):
         """创建默认配置文件"""
         default = {
-            "app": {"host": "127.0.0.1", "port": 8080, "secret_key": "", "debug": False, "name": "秒读课堂采集发布系统", "version": "2.3.0"},
+            "app": {"host": "127.0.0.1", "port": 8080, "secret_key": "", "debug": False, "name": "秒读课堂采集发布系统", "version": "2.4.0"},
             "database": {"path": "./data/miaodu.db"},
             "categories": [
                 {"name": "写作素材", "enabled": True, "daily_min": 2, "daily_max": 5},
