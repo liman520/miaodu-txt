@@ -1,0 +1,13 @@
+# 秒读课堂 v2.2 - Python 依赖
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+sqlalchemy>=2.0.0
+pydantic>=2.0.0
+pyyaml>=6.0
+httpx>=0.25.0
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+apscheduler>=3.10.0
+cryptography>=41.0.0
+python-multipart>=0.0.6
+jinja2>=3.1.0

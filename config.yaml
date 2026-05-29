@@ -1,0 +1,67 @@
+ai_correction:
+  deepseek:
+    api_key: ''
+    api_url: ''
+    model: deepseek-chat
+  enabled: false
+  mimo:
+    api_key: ''
+    api_url: ''
+    model: ''
+  provider: deepseek
+  timeout: 30
+app:
+  debug: false
+  host: 127.0.0.1
+  name: 秒读课堂采集发布系统
+  port: 8080
+  secret_key: 2f18445bcd5928a62fac20c32965a1d20fb2f2048e9f817cf00da39bc69a0b5b
+  version: 2.3.0
+categories:
+- daily_max: 5
+  daily_min: 2
+  enabled: true
+  name: 写作素材
+- daily_max: 5
+  daily_min: 2
+  enabled: true
+  name: 古诗古文
+- daily_max: 5
+  daily_min: 2
+  enabled: true
+  name: 时政热点
+- daily_max: 5
+  daily_min: 2
+  enabled: true
+  name: 家国情怀
+- daily_max: 5
+  daily_min: 2
+  enabled: true
+  name: 科技人文
+- daily_max: 5
+  daily_min: 2
+  enabled: true
+  name: 思辨阅读
+collection:
+  max_articles_per_source: 20
+  max_retries: 3
+  max_word_count: 3000
+  min_word_count: 300
+  request_interval: 3
+  schedule_cron: 0 7 * * *
+  timeout: 300
+database:
+  path: ./data/miaodu.db
+logging:
+  backup_count: 5
+  file: ./data/logs/app.log
+  level: INFO
+  max_size_mb: 10
+platform:
+  chrome_user_data_dir: ''
+  url: https://miaoduai.com/v2/
+publish:
+  article_interval: 60
+  schedule_cron: 0 17 * * *
+  time_range_end: '20:00'
+  time_range_start: '18:00'

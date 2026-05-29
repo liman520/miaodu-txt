@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+data/
+archives/
+recycle_bin/
+*.db
+*.yaml.tmp

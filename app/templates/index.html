@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>秒读课堂 v2.3 - 采集发布系统</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
+</head>
+<body>
+    <!-- 登录页面 -->
+    <div id="loginPage" class="login-page">
+        <div class="login-card">
+            <h1>📚 秒读课堂</h1>
+            <p class="subtitle">AI 全自动文章采集发布系统 v2.3</p>
+            <form onsubmit="handleLogin(event)">
+                <input type="password" id="loginPassword" placeholder="请输入管理密码" autocomplete="current-password" required>
+                <button type="submit" class="btn btn-block">登 录</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 主应用 -->
+    <div id="mainApp" class="app-layout" style="display:none;">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>📚 秒读课堂 <span class="version">v2.3</span></h2>
+            </div>
+            <nav>
+                <a class="nav-item active" data-page="dashboard" href="#">
+                    <span class="nav-icon">📊</span> 数据概览
+                </a>
+                <a class="nav-item" data-page="articles" href="#">
+                    <span class="nav-icon">📝</span> 文章管理
+                </a>
+                <a class="nav-item" data-page="sources" href="#">
+                    <span class="nav-icon">🌐</span> 采集源管理
+                </a>
+                <a class="nav-item" data-page="manual-collect" href="#">
+                    <span class="nav-icon">✏️</span> 手动采集
+                </a>
+                <a class="nav-item" data-page="config" href="#">
+                    <span class="nav-icon">⚙️</span> 参数配置
+                </a>
+                <a class="nav-item" data-page="logs" href="#">
+                    <span class="nav-icon">📋</span> 操作日志
+                </a>
+                <a class="nav-item" data-page="recycle" href="#">
+                    <span class="nav-icon">🗑️</span> 回收站
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <button class="btn" onclick="showChangePwdModal()">🔑 改密</button>
+                <button class="btn" onclick="handleLogout()">🚪 退出</button>
+            </div>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <header class="top-bar">
+                <h1 id="pageTitle">数据概览</h1>
+                <div class="top-actions">
+                    <div id="taskStatus">
+                        <span class="status-dot idle" id="statusDot"></span>
+                        <span id="statusText">系统空闲</span>
+                    </div>
+                    <button class="btn btn-sm btn-primary" id="btnCollect" onclick="triggerCollect()">🔄 采集</button>
+                    <button class="btn btn-sm btn-success" id="btnPublish" onclick="triggerPublish()">📤 发布</button>
+                </div>
+            </header>
+
+            <!-- 采集进度面板 -->
+            <div id="collectPanel" class="collect-panel" style="display:none;">
+                <div class="collect-panel-header">
+                    <h3>
+                        <span id="collectPanelIcon">⚡</span>
+                        <span id="collectPanelTitle">正在采集...</span>
+                    </h3>
+                    <button class="btn btn-sm btn-danger" id="btnStopCollect" onclick="stopCollect()">⏹ 停止采集</button>
+                </div>
+                <div class="collect-panel-body">
+                    <div class="progress-container">
+                        <div class="progress-header">
+                            <span class="progress-label" id="progressLabel">准备中...</span>
+                            <span class="progress-pct" id="progressPct">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="collect-current" id="collectCurrent">
+                        <div class="collect-current-icon">🔍</div>
+                        <div class="collect-current-info">
+                            <div class="collect-current-title" id="currentSource">等待开始...</div>
+                            <div class="collect-current-action" id="currentAction">-</div>
+                        </div>
+                    </div>
+                    <div class="collect-stats">
+                        <div class="collect-stat">
+                            <div class="collect-stat-num blue" id="collectTotal">0</div>
+                            <div class="collect-stat-label">已采集</div>
+                        </div>
+                        <div class="collect-stat">
+                            <div class="collect-stat-num green" id="collectPassed">0</div>
+                            <div class="collect-stat-label">已通过</div>
+                        </div>
+                        <div class="collect-stat">
+                            <div class="collect-stat-num red" id="collectRejected">0</div>
+                            <div class="collect-stat-label">已驳回</div>
+                        </div>
+                        <div class="collect-stat">
+                            <div class="collect-stat-num orange" id="collectSkipped">0</div>
+                            <div class="collect-stat-label">已跳过</div>
+                        </div>
+                    </div>
+                    <div class="collect-logs" id="collectLogs">
+                        <div class="collect-log-entry">等待日志...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 数据概览 -->
+            <div id="page-dashboard" class="page active">
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-num" id="statTotal">0</div><div class="stat-label">文章总数</div></div>
+                    <div class="stat-card"><div class="stat-num text-warning" id="statPending">0</div><div class="stat-label">待审核</div></div>
+                    <div class="stat-card"><div class="stat-num text-success" id="statApproved">0</div><div class="stat-label">已通过</div></div>
+                    <div class="stat-card"><div class="stat-num text-primary" id="statPublished">0</div><div class="stat-label">已发布</div></div>
+                    <div class="stat-card"><div class="stat-num text-danger" id="statRejected">0</div><div class="stat-label">已驳回</div></div>
+                    <div class="stat-card"><div class="stat-num" id="statToday">0</div><div class="stat-label">今日采集</div></div>
+                </div>
+                <div class="row">
+                    <div class="col-8">
+                        <div class="card">
+                            <h3>📊 板块分布</h3>
+                            <div id="categoryChart"></div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="card">
+                            <h3>🔗 采集源状态</h3>
+                            <p style="margin-bottom:8px;">总数: <strong id="srcTotal">0</strong></p>
+                            <p style="margin-bottom:8px;">已启用: <strong id="srcActive">0</strong></p>
+                            <p>回收站: <strong id="recycleCount">0</strong></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>📋 最近任务</h3>
+                    <div id="recentLogs"></div>
+                </div>
+            </div>
+
+            <!-- 文章管理 -->
+            <div id="page-articles" class="page">
+                <div class="toolbar">
+                    <select id="filterStatus" onchange="loadArticles()">
+                        <option value="">全部状态</option>
+                        <option value="pending">待审核</option>
+                        <option value="approved">已通过</option>
+                        <option value="published">已发布</option>
+                        <option value="rejected">已驳回</option>
+                    </select>
+                    <select id="filterCategory" onchange="loadArticles()">
+                        <option value="">全部板块</option>
+                        <option value="写作素材">写作素材</option>
+                        <option value="古诗古文">古诗古文</option>
+                        <option value="时政热点">时政热点</option>
+                        <option value="家国情怀">家国情怀</option>
+                        <option value="科技人文">科技人文</option>
+                        <option value="思辨阅读">思辨阅读</option>
+                    </select>
+                    <button class="btn btn-sm btn-success" onclick="batchReview('approve')">✅ 批量通过</button>
+                    <button class="btn btn-sm btn-danger" onclick="batchReview('reject')">❌ 批量驳回</button>
+                </div>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th>
+                            <th>ID</th><th>标题</th><th>板块</th><th>字数</th>
+                            <th>状态</th><th>来源</th><th>时间</th><th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="articlesTable"></tbody>
+                </table>
+                <div id="articlesPagination" class="pagination"></div>
+            </div>
+
+            <!-- 采集源管理 -->
+            <div id="page-sources" class="page">
+                <div class="toolbar">
+                    <button class="btn btn-primary" onclick="showAddSourceModal()">+ 新增采集源</button>
+                </div>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th><th>名称</th><th>URL</th><th>板块</th>
+                            <th>状态</th><th>上次采集</th><th>已采集</th><th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sourcesTable"></tbody>
+                </table>
+            </div>
+
+            <!-- 手动采集 -->
+            <div id="page-manual-collect" class="page">
+                <div class="card">
+                    <h3>✏️ 手动添加文章</h3>
+                    <form id="manualForm" onsubmit="submitManualArticle(event)">
+                        <div class="form-row">
+                            <label>标题 *</label>
+                            <input type="text" id="manualTitle" required placeholder="输入文章标题">
+                        </div>
+                        <div class="form-row">
+                            <label>板块 *</label>
+                            <select id="manualCategory" required>
+                                <option value="">请选择板块</option>
+                                <option value="写作素材">写作素材</option>
+                                <option value="古诗古文">古诗古文</option>
+                                <option value="时政热点">时政热点</option>
+                                <option value="家国情怀">家国情怀</option>
+                                <option value="科技人文">科技人文</option>
+                                <option value="思辨阅读">思辨阅读</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label>正文 *</label>
+                            <textarea id="manualContent" rows="12" required placeholder="粘贴文章正文..."></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="form-row" style="flex:1">
+                                <label>作者</label>
+                                <input type="text" id="manualAuthor" placeholder="可选">
+                            </div>
+                            <div class="form-row" style="flex:1">
+                                <label>来源名称</label>
+                                <input type="text" id="manualSourceName" placeholder="可选">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <label>来源链接</label>
+                            <input type="url" id="manualSourceUrl" placeholder="https://...">
+                        </div>
+                        <button type="submit" class="btn btn-primary">提交文章</button>
+                    </form>
+                    <div id="manualResult" style="display:none;" class="card" style="margin-top:16px;"></div>
+                </div>
+            </div>
+
+            <!-- 参数配置 -->
+            <div id="page-config" class="page">
+                <div class="card">
+                    <h3>⏰ 定时任务</h3>
+                    <div class="form-row">
+                        <label>采集 Cron 表达式</label>
+                        <input type="text" id="cfgCollectCron" placeholder="0 8 * * *">
+                        <small>默认每天 08:00 自动采集</small>
+                    </div>
+                    <div class="form-row">
+                        <label>发布 Cron 表达式</label>
+                        <input type="text" id="cfgPublishCron" placeholder="0 18 * * *">
+                        <small>默认每天 18:00 自动发布</small>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>📂 板块配置</h3>
+                    <div id="categoryConfig"></div>
+                </div>
+                <div class="card">
+                    <h3>🤖 AI 纠错配置</h3>
+                    <div class="form-row">
+                        <label><input type="checkbox" id="cfgAiEnabled"> 启用 AI 纠错</label>
+                    </div>
+                    <div class="form-row">
+                        <label>AI 提供商</label>
+                        <select id="cfgAiProvider">
+                            <option value="deepseek">DeepSeek</option>
+                            <option value="mimo">小米 MiMo</option>
+                        </select>
+                    </div>
+                    <h4>DeepSeek</h4>
+                    <div class="form-row">
+                        <label>API 地址</label>
+                        <input type="text" id="cfgDeepseekUrl" placeholder="https://api.deepseek.com">
+                    </div>
+                    <div class="form-row">
+                        <label>API Key</label>
+                        <input type="password" id="cfgDeepseekKey" placeholder="sk-...">
+                    </div>
+                    <div class="form-row">
+                        <label>模型</label>
+                        <input type="text" id="cfgDeepseekModel" value="deepseek-chat">
+                    </div>
+                    <h4>小米 MiMo</h4>
+                    <div class="form-row">
+                        <label>API 地址</label>
+                        <input type="text" id="cfgMimoUrl" placeholder="https://api.mimo.com">
+                    </div>
+                    <div class="form-row">
+                        <label>API Key</label>
+                        <input type="password" id="cfgMimoKey" placeholder="输入 Key">
+                    </div>
+                    <div class="form-row">
+                        <label>模型</label>
+                        <input type="text" id="cfgMimoModel" placeholder="模型名称">
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="saveConfig()">💾 保存配置</button>
+            </div>
+
+            <!-- 操作日志 -->
+            <div id="page-logs" class="page">
+                <div class="card">
+                    <h3>📋 操作日志</h3>
+                    <div id="logsContainer"></div>
+                </div>
+            </div>
+
+            <!-- 回收站 -->
+            <div id="page-recycle" class="page">
+                <div class="toolbar">
+                    <button class="btn btn-danger" onclick="clearRecycle()">🗑️ 清空回收站</button>
+                </div>
+                <div id="recycleContainer"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 文章预览模态框 -->
+    <div id="articleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle"></h3>
+                <button class="modal-close" onclick="closeModal('articleModal')">&times;</button>
+            </div>
+            <div id="modalMeta" class="modal-meta"></div>
+            <pre id="modalContent" class="modal-body"></pre>
+            <div id="modalFooter" class="modal-footer"></div>
+        </div>
+    </div>
+
+    <!-- 采集源编辑模态框 -->
+    <div id="sourceModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="sourceModalTitle">新增采集源</h3>
+                <button class="modal-close" onclick="closeModal('sourceModal')">&times;</button>
+            </div>
+            <input type="hidden" id="srcEditId">
+            <div class="form-row"><label>名称 *</label><input type="text" id="srcName" required placeholder="采集源名称"></div>
+            <div class="form-row"><label>URL *</label><input type="url" id="srcUrl" required placeholder="https://example.com"></div>
+            <div class="form-row">
+                <label>板块 *</label>
+                <select id="srcCategory" required>
+                    <option value="">请选择板块</option>
+                    <option value="写作素材">写作素材</option>
+                    <option value="古诗古文">古诗古文</option>
+                    <option value="时政热点">时政热点</option>
+                    <option value="家国情怀">家国情怀</option>
+                    <option value="科技人文">科技人文</option>
+                    <option value="思辨阅读">思辨阅读</option>
+                </select>
+            </div>
+            <div class="form-row"><label>链接选择器</label><input type="text" id="srcLinkSel" placeholder="CSS 选择器，如 .article-list a"></div>
+            <div class="form-row"><label>标题选择器</label><input type="text" id="srcTitleSel" placeholder="CSS 选择器，如 h1.title"></div>
+            <div class="form-row"><label>正文选择器</label><input type="text" id="srcContentSel" placeholder="CSS 选择器，如 .content"></div>
+            <div class="form-row"><label><input type="checkbox" id="srcEnabled" checked> 启用此采集源</label></div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('sourceModal')">取消</button>
+                <button class="btn btn-primary" onclick="saveSource()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 修改密码模态框 -->
+    <div id="changePwdModal" class="modal">
+        <div class="modal-content" style="max-width:420px;">
+            <div class="modal-header">
+                <h3>🔑 修改密码</h3>
+                <button class="modal-close" onclick="closeModal('changePwdModal')">&times;</button>
+            </div>
+            <div class="change-pwd-form">
+                <div class="form-row">
+                    <label>当前密码</label>
+                    <input type="password" id="oldPassword" required placeholder="输入当前密码">
+                    <button class="pwd-toggle" type="button" onclick="togglePwd('oldPassword', this)">👁</button>
+                </div>
+                <div class="form-row">
+                    <label>新密码</label>
+                    <input type="password" id="newPassword" required placeholder="至少6位" minlength="6">
+                    <button class="pwd-toggle" type="button" onclick="togglePwd('newPassword', this)">👁</button>
+                </div>
+                <div class="form-row">
+                    <label>确认新密码</label>
+                    <input type="password" id="confirmPassword" required placeholder="再次输入新密码">
+                    <button class="pwd-toggle" type="button" onclick="togglePwd('confirmPassword', this)">👁</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('changePwdModal')">取消</button>
+                <button class="btn btn-primary" onclick="changePassword()">确认修改</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 容器 -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
