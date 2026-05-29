@@ -5,3 +5,4 @@ archives/
 recycle_bin/
 *.db
 *.yaml.tmp
+.venv/
