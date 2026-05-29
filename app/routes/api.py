@@ -1,4 +1,4 @@
-"""API 路由 - v2.3 增强版（密码修改 + 采集可视化 + 停止控制）"""
+"""API 路由 - v2.3.1 修复版（public_router 注册 + 字段对齐 + 发布状态追踪）"""
 
 import html
 import logging
@@ -26,12 +26,6 @@ def require_auth(request: Request):
     if not auth_mgr.verify_token(token):
         raise HTTPException(status_code=401, detail="未认证，请先登录")
     return True
-
-# 公开路由（无需认证）
-public_router = APIRouter(prefix="/api")
-
-# 需认证路由
-router = APIRouter(prefix="/api", dependencies=[Depends(require_auth)])
 
 
 # ========== Pydantic 模型 ==========
@@ -100,18 +94,24 @@ def _escape(text: str) -> str:
     return html.escape(str(text)) if text else ""
 
 
-# ========== 认证路由（无需认证） ==========
+# ========== 公开路由（无需认证） ==========
+public_router = APIRouter(prefix="/api")
 
-@router.post("/auth/login")
+@public_router.post("/auth/login")
 async def login(data: LoginRequest, request: Request):
-    """登录获取 token"""
+    """登录获取 token（无需认证）"""
     auth_mgr = request.app.state.auth
     config = request.app.state.config
     password = data.password
-    if not auth_mgr.verify_password(password, config.get("app.secret_key", "")):
+    if not auth_mgr.verify_password(password):
         raise HTTPException(status_code=401, detail="密码错误")
     token = auth_mgr.generate_token(expires_hours=24)
     return {"token": token, "message": "登录成功"}
+
+
+# ========== 需认证路由 ==========
+router = APIRouter(prefix="/api", dependencies=[Depends(require_auth)])
+
 
 @router.post("/auth/logout")
 async def logout(request: Request):
@@ -121,12 +121,13 @@ async def logout(request: Request):
     auth_mgr.revoke_token(token)
     return {"message": "已登出"}
 
+
 @router.post("/auth/change-password")
 async def change_password(data: ChangePasswordRequest, request: Request):
     """修改密码"""
     auth_mgr = request.app.state.auth
     config = request.app.state.config
-    success, message = auth_mgr.change_password(data.old_password, data.new_password, config)
+    success, message = auth_mgr.change_password(data.old_password, data.new_password)
     if not success:
         raise HTTPException(status_code=400, detail=message)
     return {"message": message}
@@ -148,6 +149,24 @@ async def stop_collect(request: Request):
         return {"message": "当前没有正在执行的采集任务"}
     state.request_stop()
     return {"message": "正在停止采集，请稍候..."}
+
+
+# ========== 发布状态路由 ==========
+
+@router.get("/tasks/publish/status")
+async def get_publish_status(request: Request):
+    """获取发布进度状态"""
+    state = request.app.state.publish_state
+    return state.get_status()
+
+@router.post("/tasks/publish/stop")
+async def stop_publish(request: Request):
+    """停止发布"""
+    state = request.app.state.publish_state
+    if not state.is_running:
+        return {"message": "当前没有正在执行的发布任务"}
+    state.request_stop()
+    return {"message": "正在停止发布，请稍候..."}
 
 
 # ========== 文章路由 ==========
@@ -391,6 +410,10 @@ async def trigger_collect(request: Request):
 @router.post("/tasks/publish")
 async def trigger_publish(request: Request):
     """手动触发发布"""
+    state = request.app.state.publish_state
+    if state.is_running:
+        return {"message": "发布任务正在执行中，请勿重复触发"}
+
     from app.core.services import do_publish
     asyncio.create_task(do_publish(request.app))
     return {"message": "发布任务已提交，后台执行中"}

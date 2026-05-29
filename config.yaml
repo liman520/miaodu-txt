@@ -3,12 +3,12 @@ ai_correction:
     api_key: ''
     api_url: ''
     model: deepseek-chat
-  enabled: false
+  enabled: true
   mimo:
-    api_key: ''
-    api_url: ''
-    model: ''
-  provider: deepseek
+    api_key: sk-cl96qzn1h8jsdm68d1t4w2velsk29sersa7cn74m5fyyhjbv
+    api_url: https://api.xiaomimimo.com/v1/chat/completions
+    model: mimo-v2-pro
+  provider: mimo
   timeout: 30
 app:
   debug: false
@@ -48,7 +48,7 @@ collection:
   max_word_count: 3000
   min_word_count: 300
   request_interval: 3
-  schedule_cron: 0 7 * * *
+  schedule_cron: 0 9 * * *
   timeout: 300
 database:
   path: ./data/miaodu.db
@@ -59,7 +59,7 @@ logging:
   max_size_mb: 10
 platform:
   chrome_user_data_dir: ''
-  url: https://miaoduai.com/v2/
+  url: https://test.example.com
 publish:
   article_interval: 60
   schedule_cron: 0 17 * * *

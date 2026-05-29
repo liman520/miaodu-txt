@@ -1,8 +1,9 @@
-/* ========== 秒读课堂 v2.3 - 前端交互逻辑 ========== */
+/* ========== 秒读课堂 v2.3.1 - 前端交互逻辑（修复版） ========== */
 
 let authToken = localStorage.getItem('auth_token') || '';
 let currentPage = 1;
 let collectPollTimer = null;
+let publishPollTimer = null;
 
 // ========== API 工具函数 ==========
 async function api(url, options = {}) {
@@ -58,6 +59,7 @@ function showLogin() {
     authToken = '';
     localStorage.removeItem('auth_token');
     stopCollectPolling();
+    stopPublishPolling();
 }
 
 function showApp() {
@@ -406,7 +408,7 @@ async function stopCollect() {
 function startCollectPolling() {
     if (collectPollTimer) return;
     updateCollectUI(true);
-    collectPollTimer = setInterval(pollCollectStatus, 1000);
+    collectPollTimer = setInterval(pollCollectStatus, 1500);
 }
 
 function stopCollectPolling() {
@@ -417,7 +419,10 @@ async function pollCollectStatus() {
     try {
         var status = await api('/api/tasks/collect/status');
         updateCollectUI(status.is_running, status);
-        if (!status.is_running && status.finished_at) { stopCollectPolling(); setTimeout(function() { loadDashboard(); }, 500); }
+        if (!status.is_running && status.finished_at) {
+            stopCollectPolling();
+            setTimeout(function() { loadDashboard(); }, 500);
+        }
     } catch (e) { if (e.message.includes('未认证')) stopCollectPolling(); }
 }
 
@@ -460,23 +465,70 @@ function updateCollectUI(isRunning, status) {
     }
 }
 
-// ========== 发布 ==========
+// ========== 发布控制 ==========
 async function triggerPublish() {
     try {
         var result = await api('/api/tasks/publish', { method: 'POST' });
         toast(result.message, 'info');
+        startPublishPolling();
     } catch (e) { toast('发布触发失败: ' + e.message, 'error'); }
 }
 
+async function stopPublish() {
+    if (!confirm('确定要停止发布吗？')) return;
+    try {
+        var result = await api('/api/tasks/publish/stop', { method: 'POST' });
+        toast(result.message, 'warning');
+    } catch (e) { toast('停止失败: ' + e.message, 'error'); }
+}
+
+function startPublishPolling() {
+    if (publishPollTimer) return;
+    publishPollTimer = setInterval(pollPublishStatus, 1500);
+}
+
+function stopPublishPolling() {
+    if (publishPollTimer) { clearInterval(publishPollTimer); publishPollTimer = null; }
+}
+
+async function pollPublishStatus() {
+    try {
+        var status = await api('/api/tasks/publish/status');
+        updatePublishUI(status);
+        if (!status.is_running && status.finished_at) {
+            stopPublishPolling();
+            toast('发布任务已完成', 'success');
+            setTimeout(function() { loadDashboard(); }, 500);
+        }
+    } catch (e) { if (e.message.includes('未认证')) stopPublishPolling(); }
+}
+
+function updatePublishUI(status) {
+    var btnPublish = document.getElementById('btnPublish');
+    if (status.is_running) {
+        btnPublish.disabled = true;
+        btnPublish.textContent = '⏳ 发布中 ' + status.progress + '%';
+    } else {
+        btnPublish.disabled = false;
+        btnPublish.textContent = '📤 发布';
+    }
+    if (status.logs && status.logs.length > 0) {
+        var lastLog = status.logs[status.logs.length - 1];
+        toast(lastLog.message, lastLog.level === 'error' ? 'error' : 'info');
+    }
+}
+
 // ========== 参数配置 ==========
+var categoryData = [];
+
 async function loadConfig() {
     try {
         var data = await api('/api/config');
         document.getElementById('cfgCollectCron').value = data.collection_schedule || '';
         document.getElementById('cfgPublishCron').value = data.publish_schedule || '';
+        categoryData = data.categories || [];
         var container = document.getElementById('categoryConfig');
-        var cats = data.categories || [];
-        container.innerHTML = cats.map(function(c, i) {
+        container.innerHTML = categoryData.map(function(c, i) {
             return '<div class="form-row" style="align-items:center;display:flex;gap:12px;"><div style="width:100px;font-weight:500;">' + esc(c.name) + '</div><label style="display:flex;align-items:center;gap:4px;font-size:13px;"><input type="checkbox" ' + (c.enabled ? 'checked' : '') + ' onchange="updateCategoryEnabled(' + i + ', this.checked)"> 启用</label></div>';
         }).join('');
         var ai = data.ai_correction || {};
@@ -493,7 +545,6 @@ async function loadConfig() {
     } catch (e) { toast('加载配置失败: ' + e.message, 'error'); }
 }
 
-var categoryData = [];
 function updateCategoryEnabled(index, enabled) { if (categoryData[index]) categoryData[index].enabled = enabled; }
 
 async function saveConfig() {

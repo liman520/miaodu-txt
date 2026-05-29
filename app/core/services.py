@@ -1,4 +1,4 @@
-"""业务服务层 - v2.3（避免循环导入，使用 asyncio.create_task）"""
+"""业务服务层 - v2.3.1（发布状态追踪 + 停止支持）"""
 
 import logging
 import asyncio
@@ -24,6 +24,7 @@ async def do_collection(app):
         if not sources:
             logger.warning("没有启用的采集源")
             collect_state.add_log("没有启用的采集源，任务结束", "warning")
+            collect_state.finish(success=True)
             return
 
         collect_state.start(total_sources=len(sources))
@@ -130,14 +131,14 @@ async def do_collection(app):
 
 
 async def do_publish(app):
-    """执行发布"""
+    """执行发布（带状态追踪 + 停止支持）"""
     from app.models.database import Article, TaskLog, ArticleStatus, get_session
 
     config = app.state.config
     publisher = app.state.publisher
+    publish_state = app.state.publish_state
 
     logger.info("=== 发布任务开始 ===")
-    start = datetime.now()
 
     with get_session() as session:
         articles = session.query(Article).filter(
@@ -146,12 +147,25 @@ async def do_publish(app):
 
         if not articles:
             logger.info("没有待发布的文章")
+            publish_state.add_log("没有待发布的文章", "warning")
+            publish_state.finish(success=True)
             return
 
+        publish_state.start(total_articles=len(articles))
+        publish_state.add_log(f"开始发布，共 {len(articles)} 篇文章", "info")
+
+        start = datetime.now()
         published_count = 0
         failed_count = 0
 
         for article in articles:
+            # 检查停止请求
+            if publish_state.should_stop():
+                publish_state.add_log("发布已被用户停止", "warning")
+                break
+
+            publish_state.add_log(f"正在发布：{article.title[:30]}...", "info")
+
             article_dict = {
                 "title": article.title,
                 "content": article.content,
@@ -166,8 +180,12 @@ async def do_publish(app):
                 article.status = ArticleStatus.PUBLISHED.value
                 article.published_at = datetime.utcnow()
                 published_count += 1
+                publish_state.update_progress(article.title, True)
+                publish_state.add_log(f"✅ 发布成功：{article.title[:30]}...", "success")
             else:
                 failed_count += 1
+                publish_state.update_progress(article.title, False)
+                publish_state.add_log(f"❌ 发布失败：{article.title[:30]}...", "error")
 
             # 发布间隔
             interval = config.get("publish.article_interval", 60)
@@ -176,11 +194,20 @@ async def do_publish(app):
         session.flush()
 
         duration = (datetime.now() - start).total_seconds()
+
+        if publish_state.should_stop():
+            msg = f"发布已手动停止：成功{published_count}篇, 失败{failed_count}篇"
+        else:
+            msg = f"发布完成: 成功{published_count}篇, 失败{failed_count}篇"
+
         log = TaskLog(
-            task_type="publish", status="success",
-            message=f"发布完成: 成功{published_count}篇, 失败{failed_count}篇",
+            task_type="publish",
+            status="stopped" if publish_state.should_stop() else "success",
+            message=msg,
             duration_seconds=duration,
         )
         session.add(log)
 
+    publish_state.finish(success=not publish_state.should_stop())
+    publish_state.add_log(f"发布任务结束（耗时 {duration:.1f} 秒）", "info")
     logger.info(f"=== 发布任务完成 (耗时 {duration:.1f}s) ===")
