@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}归档管理{% endblock %}
+{% block nav_archives %}nav-active{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <h1 class="text-2xl font-bold text-gray-800"><i class="fas fa-archive text-primary-600 mr-2"></i>本地归档管理</h1>
+
+    <!-- 日期选择 -->
+    <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100 flex flex-wrap gap-3 items-center">
+        <span class="text-sm text-gray-500">归档日期:</span>
+        {% for d in dates %}
+        <a href="/archives?date={{ d }}" class="filter-chip {% if current_date == d %}active{% endif %}">{{ d }}</a>
+        {% endfor %}
+        {% if not dates %}
+        <span class="text-sm text-gray-400">暂无归档数据</span>
+        {% endif %}
+    </div>
+
+    <!-- 归档文件列表 -->
+    {% if current_date %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <h2 class="font-semibold text-gray-700">{{ current_date }} 归档文件 ({{ files | length }} 篇)</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50">
+                    <tr class="text-left text-gray-500">
+                        <th class="py-3 px-3">文件名</th>
+                        <th class="py-3 px-3">标题</th>
+                        <th class="py-3 px-3">板块</th>
+                        <th class="py-3 px-3">字数</th>
+                        <th class="py-3 px-3">归档时间</th>
+                        <th class="py-3 px-3">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f in files %}
+                    <tr class="border-b border-gray-50 hover:bg-gray-50">
+                        <td class="py-2 px-3 font-mono text-xs text-gray-500">{{ f.filename }}</td>
+                        <td class="py-2 px-3 text-gray-800 font-medium">{{ f.title }}</td>
+                        <td class="py-2 px-3"><span class="badge badge-info">{{ f.category }}</span></td>
+                        <td class="py-2 px-3 text-gray-500">{{ f.word_count }}</td>
+                        <td class="py-2 px-3 text-gray-400 text-xs font-mono">{{ f.archived_at }}</td>
+                        <td class="py-2 px-3">
+                            <button onclick="viewArchive('{{ f.filepath }}')" class="btn-icon text-primary-600" title="查看"><i class="fas fa-eye"></i></button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not files %}
+                    <tr><td colspan="6" class="py-12 text-center text-gray-400">该日期无归档文件</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="bg-white rounded-xl shadow-sm p-12 border border-gray-100 text-center text-gray-400">
+        <i class="fas fa-folder-open text-5xl mb-4 block"></i>
+        <p>请选择一个归档日期查看文件</p>
+        <p class="text-sm mt-2">系统每日自动将通过预审的文章归档至 <code class="bg-gray-100 px-2 py-0.5 rounded">Archive_Data/YYYY-MM-DD/</code> 目录</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- 查看归档内容模态框 -->
+<div id="archive-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <h3 id="archive-title" class="text-lg font-bold text-gray-800"></h3>
+            <button onclick="closeArchiveModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        <div id="archive-content" class="px-6 py-4 overflow-y-auto flex-1 prose prose-sm max-w-none"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function viewArchive(filepath) {
+        try {
+            const resp = await fetch(filepath);
+            const text = await resp.text();
+            const data = JSON.parse(text);
+            document.getElementById('archive-title').textContent = data.title || '归档文章';
+            document.getElementById('archive-content').innerHTML = (data.content || '').replace(/\n/g, '<br>');
+            document.getElementById('archive-modal').classList.remove('hidden');
+        } catch (e) {
+            showToast('无法读取归档文件', 'error');
+        }
+    }
+    function closeArchiveModal() { document.getElementById('archive-modal').classList.add('hidden'); }
+</script>
+{% endblock %}

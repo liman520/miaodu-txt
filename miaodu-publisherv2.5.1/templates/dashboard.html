@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}仪表盘{% endblock %}
+{% block nav_dashboard %}nav-active{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- 顶部操作栏 -->
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        <h1 class="text-2xl font-bold text-gray-800"><i class="fas fa-tachometer-alt text-primary-600 mr-2"></i>运营仪表盘</h1>
+        <div class="flex flex-wrap gap-2">
+            <button onclick="manualCollect()" class="btn-primary">
+                <i class="fas fa-download mr-1"></i>手动采集
+            </button>
+            <button onclick="manualPublish()" class="btn-success">
+                <i class="fas fa-paper-plane mr-1"></i>立即发布
+            </button>
+            <button onclick="toggleScheduler()" id="btn-scheduler" class="btn-warning">
+                <i class="fas fa-clock mr-1"></i>{% if scheduler.running %}暂停调度{% else %}启用调度{% endif %}
+            </button>
+        </div>
+    </div>
+
+    <!-- 核心指标卡片 -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div class="stat-card bg-blue-50 border-blue-200">
+            <div class="text-blue-600 text-2xl font-bold">{{ stats.today_collected }}</div>
+            <div class="text-blue-500 text-sm mt-1">今日采集</div>
+            <i class="fas fa-cloud-download-alt stat-icon text-blue-300"></i>
+        </div>
+        <div class="stat-card bg-yellow-50 border-yellow-200">
+            <div class="text-yellow-600 text-2xl font-bold">{{ stats.pending_review }}</div>
+            <div class="text-yellow-500 text-sm mt-1">待人审核</div>
+            <i class="fas fa-hourglass-half stat-icon text-yellow-300"></i>
+        </div>
+        <div class="stat-card bg-green-50 border-green-200">
+            <div class="text-green-600 text-2xl font-bold">{{ stats.ready_count }}</div>
+            <div class="text-green-500 text-sm mt-1">待发布</div>
+            <i class="fas fa-check-double stat-icon text-green-300"></i>
+        </div>
+        <div class="stat-card bg-purple-50 border-purple-200">
+            <div class="text-purple-600 text-2xl font-bold">{{ stats.published_total }}</div>
+            <div class="text-purple-500 text-sm mt-1">已发布</div>
+            <i class="fas fa-rocket stat-icon text-purple-300"></i>
+        </div>
+        <div class="stat-card bg-red-50 border-red-200">
+            <div class="text-red-600 text-2xl font-bold">{{ stats.today_rejected }}</div>
+            <div class="text-red-500 text-sm mt-1">AI拦截</div>
+            <i class="fas fa-shield-alt stat-icon text-red-300"></i>
+        </div>
+    </div>
+
+    <!-- 两栏布局：板块储备 + 调度状态 -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- 六大板块储备柱状图 -->
+        <div class="lg:col-span-2 bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <h2 class="text-lg font-semibold text-gray-700 mb-4"><i class="fas fa-chart-bar text-primary-500 mr-2"></i>六大板块素材储备</h2>
+            <canvas id="categoryChart" height="200"></canvas>
+        </div>
+
+        <!-- 调度器状态 -->
+        <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <h2 class="text-lg font-semibold text-gray-700 mb-4"><i class="fas fa-cogs text-primary-500 mr-2"></i>系统状态</h2>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center py-2 border-b border-gray-50">
+                    <span class="text-gray-500 text-sm">定时调度</span>
+                    <span class="badge {% if scheduler.running %}badge-success{% else %}badge-gray{% endif %}">
+                        {% if scheduler.running %}运行中{% else %}已停止{% endif %}
+                    </span>
+                </div>
+                <div class="flex justify-between items-center py-2 border-b border-gray-50">
+                    <span class="text-gray-500 text-sm">采集时间</span>
+                    <span class="text-gray-700 text-sm font-mono">{{ scheduler.collect_cron or '未配置' }}</span>
+                </div>
+                <div class="flex justify-between items-center py-2 border-b border-gray-50">
+                    <span class="text-gray-500 text-sm">发布时间</span>
+                    <span class="text-gray-700 text-sm font-mono">每日 {{ scheduler.publish_time }}</span>
+                </div>
+                <div class="flex justify-between items-center py-2 border-b border-gray-50">
+                    <span class="text-gray-500 text-sm">AI纠错</span>
+                    <span class="badge badge-gray">配置中</span>
+                </div>
+                {% for job in scheduler.jobs %}
+                <div class="flex justify-between items-center py-2 border-b border-gray-50">
+                    <span class="text-gray-500 text-sm">{{ job.name }}</span>
+                    <span class="text-xs text-gray-400">{{ job.next_run }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 最新日志 -->
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold text-gray-700"><i class="fas fa-scroll text-primary-500 mr-2"></i>最新运行日志</h2>
+            <a href="/logs" class="text-primary-600 text-sm hover:underline">查看全部 →</a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-gray-500 border-b border-gray-100">
+                        <th class="py-2 px-3">时间</th>
+                        <th class="py-2 px-3">级别</th>
+                        <th class="py-2 px-3">模块</th>
+                        <th class="py-2 px-3">消息</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr class="border-b border-gray-50 hover:bg-gray-50">
+                        <td class="py-2 px-3 text-gray-400 font-mono text-xs whitespace-nowrap">{{ log.created_at }}</td>
+                        <td class="py-2 px-3">
+                            <span class="badge {% if log.level == 'ERROR' %}badge-danger{% elif log.level == 'WARNING' %}badge-warning{% else %}badge-info{% endif %}">
+                                {{ log.level }}
+                            </span>
+                        </td>
+                        <td class="py-2 px-3 text-gray-500">{{ log.module }}</td>
+                        <td class="py-2 px-3 text-gray-700">{{ log.message }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% if not logs %}
+                    <tr><td colspan="4" class="py-8 text-center text-gray-400">暂无日志</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 六大板块储备柱状图
+    const catData = {{ stats.category_stats | tojson }};
+    const labels = Object.keys(catData);
+    const values = Object.values(catData);
+    const colors = ['#3b82f6', '#8b5cf6', '#ef4444', '#f59e0b', '#10b981', '#6366f1'];
+
+    new Chart(document.getElementById('categoryChart'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: '当前储备',
+                data: values,
+                backgroundColor: colors.map(c => c + '33'),
+                borderColor: colors,
+                borderWidth: 2,
+                borderRadius: 8,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, ticks: { stepSize: 1 } }
+            }
+        }
+    });
+
+    // 手动采集
+    async function manualCollect() {
+        if (!confirm('确认立即触发文章采集？')) return;
+        showLoading('正在采集文章...');
+        const form = new FormData();
+        const resp = await apiPost('/api/collect', form);
+        hideLoading();
+        if (resp.success) {
+            setTimeout(() => location.reload(), 1500);
+        }
+    }
+
+    // 手动发布
+    async function manualPublish() {
+        if (!confirm('确认立即发布所有待发布文章？将启动浏览器自动化。')) return;
+        showLoading('正在发布文章...');
+        const resp = await apiPost('/api/publish', new FormData());
+        hideLoading();
+        if (resp.success) {
+            setTimeout(() => location.reload(), 1500);
+        }
+    }
+
+    // 切换调度器
+    async function toggleScheduler() {
+        const resp = await apiPost('/api/scheduler/toggle', new FormData());
+        if (resp.success !== undefined) {
+            setTimeout(() => location.reload(), 1000);
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% block title %}系统配置{% endblock %}
+{% block nav_settings %}nav-active{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <h1 class="text-2xl font-bold text-gray-800"><i class="fas fa-cog text-primary-600 mr-2"></i>系统配置</h1>
+
+    <!-- 板块配额配置 -->
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <h2 class="text-lg font-semibold text-gray-700 mb-4"><i class="fas fa-sliders-h text-primary-500 mr-2"></i>板块采集配额</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="categories-config">
+            {% for cat in categories %}
+            <div class="border border-gray-200 rounded-lg p-4 hover:border-primary-300 transition-colors">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="font-medium text-gray-700">{{ cat }}</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" class="sr-only peer cat-enabled" data-cat="{{ cat }}" {% if config.categories.get(cat, {}).get('enabled', true) %}checked{% endif %}>
+                        <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
+                    </label>
+                </div>
+                <div class="flex gap-3">
+                    <div class="flex-1">
+                        <label class="text-xs text-gray-400">每日下限</label>
+                        <input type="number" class="form-input-sm cat-min" data-cat="{{ cat }}" value="{{ config.categories.get(cat, {}).get('daily_min', 1) }}" min="0" max="50">
+                    </div>
+                    <div class="flex-1">
+                        <label class="text-xs text-gray-400">每日上限</label>
+                        <input type="number" class="form-input-sm cat-max" data-cat="{{ cat }}" value="{{ config.categories.get(cat, {}).get('daily_max', 5) }}" min="1" max="100">
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- 文章字数限制 -->
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <h2 class="text-lg font-semibold text-gray-700 mb-4"><i class="fas fa-text-width text-primary-500 mr-2"></i>文章字数限制</h2>
+        <div class="flex gap-4 max-w-md">
+            <div class="flex-1">
+                <label class="form-label">最少字数</label>
+                <input type="number" id="min-length" class="form-input" value="{{ config.article.min_length }}" min="50" max="5000">
+            </div>
+            <div class="flex-1">
+                <label class="form-label">最多字数</label>
+                <input type="number" id="max-length" class="form-input" value="{{ config.article.max_length }}" min="100" max="10000">
+            </div>
+        </div>
+    </div>
+
+    <!-- 调度配置 -->
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <h2 class="text-lg font-semibold text-gray-700 mb-4"><i class="fas fa-clock text-primary-500 mr-2"></i>定时调度</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl">
+            <div>
+                <label class="form-label">发布时间</label>
+                <input type="time" id="publish-time" class="form-input" value="{{ config.publish_time }}">
+            </div>
+            <div>
+                <label class="form-label">采集Cron表达式</label>
+                <input type="text" id="collect-cron" class="form-input font-mono" value="{{ config.auto_schedule.collect_cron }}" placeholder="分 时 日 月 周">
+            </div>
+            <div>
+                <label class="form-label">启用自动调度</label>
+                <div class="mt-2">
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="schedule-enabled" class="sr-only peer" {% if config.auto_schedule.enabled %}checked{% endif %}>
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                        <span class="ml-3 text-sm text-gray-500">定时模式</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 大模型配置 -->
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-700"><i class="fas fa-brain text-purple-500 mr-2"></i>AI语义纠错</h2>
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="llm-enabled" class="sr-only peer" {% if config.llm.enabled %}checked{% endif %}>
+                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-500"></div>
+                <span class="ml-3 text-sm text-gray-500">启用AI纠错</span>
+            </label>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="form-label">模型供应商</label>
+                <select id="llm-provider" class="form-select">
+                    <option value="deepseek" {% if config.llm.provider == 'deepseek' %}selected{% endif %}>DeepSeek</option>
+                    <option value="mimo" {% if config.llm.provider == 'mimo' %}selected{% endif %}>Xiaomi MIMO</option>
+                    <option value="custom" {% if config.llm.provider == 'custom' %}selected{% endif %}>自定义</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label">模型名称</label>
+                <input type="text" id="llm-model" class="form-input" value="{{ config.llm.model_name }}" placeholder="deepseek-chat">
+            </div>
+            <div>
+                <label class="form-label">API Base URL</label>
+                <input type="text" id="llm-base-url" class="form-input" value="{{ config.llm.base_url }}" placeholder="https://api.deepseek.com">
+            </div>
+            <div>
+                <label class="form-label">API URL（完整地址，优先）</label>
+                <input type="text" id="llm-api-url" class="form-input" value="{{ config.llm.api_url }}" placeholder="留空则自动拼接">
+            </div>
+            <div class="md:col-span-2">
+                <label class="form-label">API Key</label>
+                <div class="flex gap-2">
+                    <input type="password" id="llm-api-key" class="form-input flex-1" value="{{ config.llm.api_key }}" placeholder="sk-...">
+                    <button onclick="testLLM()" class="btn-secondary whitespace-nowrap"><i class="fas fa-vial mr-1"></i>测试连接</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 发布目标配置 -->
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <h2 class="text-lg font-semibold text-gray-700 mb-4"><i class="fas fa-paper-plane text-orange-500 mr-2"></i>发布目标（Selenium）</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
+            <div class="md:col-span-2">
+                <label class="form-label">发布目标URL</label>
+                <input type="text" id="selenium-url" class="form-input" value="{{ config.selenium.miaoduai_url }}" placeholder="http://localhost:3000 或 https://miaoduai.com/v2/">
+                <p class="text-xs text-gray-400 mt-1">本地测试填 http://localhost:3000 ，正式环境改为 https://miaoduai.com/v2/</p>
+            </div>
+            <div>
+                <label class="form-label">无头模式（后台运行浏览器）</label>
+                <div class="mt-2">
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="selenium-headless" class="sr-only peer" {% if config.selenium.headless %}checked{% endif %}>
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                        <span class="ml-3 text-sm text-gray-500">启用后浏览器不可见</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 代理配置 -->
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <h2 class="text-lg font-semibold text-gray-700 mb-4"><i class="fas fa-shield-alt text-gray-500 mr-2"></i>网络代理</h2>
+        <div class="flex items-center gap-4 mb-3">
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="proxy-enabled" class="sr-only peer" {% if config.proxy.enabled %}checked{% endif %}>
+                <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
+                <span class="ml-2 text-sm text-gray-500">启用代理</span>
+            </label>
+        </div>
+        <div class="flex gap-4 max-w-lg">
+            <div class="flex-1">
+                <label class="form-label">HTTP代理</label>
+                <input type="text" id="proxy-http" class="form-input" value="{{ config.proxy.http }}" placeholder="http://127.0.0.1:7890">
+            </div>
+            <div class="flex-1">
+                <label class="form-label">HTTPS代理</label>
+                <input type="text" id="proxy-https" class="form-input" value="{{ config.proxy.https }}" placeholder="http://127.0.0.1:7890">
+            </div>
+        </div>
+    </div>
+
+    <!-- 保存按钮 -->
+    <div class="flex justify-end gap-3">
+        <button onclick="saveAll()" class="btn-primary px-8"><i class="fas fa-save mr-1"></i>保存全部配置</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function saveAll() {
+        const categories = {};
+        document.querySelectorAll('.cat-enabled').forEach(el => {
+            const cat = el.dataset.cat;
+            const row = el.closest('.border');
+            categories[cat] = {
+                enabled: el.checked,
+                daily_min: parseInt(row.querySelector('.cat-min').value) || 1,
+                daily_max: parseInt(row.querySelector('.cat-max').value) || 5,
+            };
+        });
+
+        const config = {
+            categories: categories,
+            article: {
+                min_length: parseInt(document.getElementById('min-length').value) || 300,
+                max_length: parseInt(document.getElementById('max-length').value) || 3000,
+            },
+            publish_time: document.getElementById('publish-time').value,
+            auto_schedule: {
+                collect_cron: document.getElementById('collect-cron').value,
+                publish_cron: `0 ${document.getElementById('publish-time').value.split(':')[0]} * * *`,
+                enabled: document.getElementById('schedule-enabled').checked,
+            },
+            llm: {
+                provider: document.getElementById('llm-provider').value,
+                model_name: document.getElementById('llm-model').value,
+                base_url: document.getElementById('llm-base-url').value,
+                api_url: document.getElementById('llm-api-url').value,
+                api_key: document.getElementById('llm-api-key').value,
+                enabled: document.getElementById('llm-enabled').checked,
+            },
+            selenium: {
+                miaoduai_url: document.getElementById('selenium-url').value,
+                headless: document.getElementById('selenium-headless').checked,
+            },
+            proxy: {
+                enabled: document.getElementById('proxy-enabled').checked,
+                http: document.getElementById('proxy-http').value,
+                https: document.getElementById('proxy-https').value,
+            },
+        };
+
+        showLoading('保存配置中...');
+        const resp = await apiRequest('/api/config/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config),
+        });
+        hideLoading();
+    }
+
+    async function testLLM() {
+        showToast('正在测试大模型连接...', 'info');
+        const resp = await apiPost('/api/llm/test', new FormData());
+        showToast(resp.message || (resp.success ? '连接成功' : '连接失败'), resp.success ? 'success' : 'error');
+    }
+</script>
+{% endblock %}

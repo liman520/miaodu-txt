@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block title %}文章管理{% endblock %}
+{% block nav_articles %}nav-active{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- 顶部操作栏 -->
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        <h1 class="text-2xl font-bold text-gray-800"><i class="fas fa-file-alt text-primary-600 mr-2"></i>文章管理</h1>
+        <div class="flex flex-wrap gap-2">
+            <button onclick="batchApprove()" class="btn-success text-sm"><i class="fas fa-check-double mr-1"></i>批量通过</button>
+            <button onclick="batchReject()" class="btn-danger text-sm"><i class="fas fa-times-circle mr-1"></i>批量驳回</button>
+            <button onclick="showTransferModal()" class="btn-warning text-sm"><i class="fas fa-exchange-alt mr-1"></i>批量转移</button>
+        </div>
+    </div>
+
+    <!-- 过滤栏 -->
+    <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100 flex flex-wrap gap-3 items-center">
+        <span class="text-sm text-gray-500">筛选:</span>
+        <a href="/articles" class="filter-chip {% if not current_status %}active{% endif %}">全部</a>
+        <a href="/articles?status=pending" class="filter-chip {% if current_status == 'pending' %}active{% endif %}">待审核</a>
+        <a href="/articles?status=ready" class="filter-chip {% if current_status == 'ready' %}active{% endif %}">待发布</a>
+        <a href="/articles?status=published" class="filter-chip {% if current_status == 'published' %}active{% endif %}">已发布</a>
+        <a href="/articles?status=rejected" class="filter-chip {% if current_status == 'rejected' %}active{% endif %}">已驳回</a>
+        <span class="text-gray-300 mx-1">|</span>
+        <select onchange="filterByCategory(this.value)" class="form-select-sm">
+            <option value="">全部板块</option>
+            {% for cat in categories %}
+            <option value="{{ cat }}" {% if current_category == cat %}selected{% endif %}>{{ cat }}</option>
+            {% endfor %}
+        </select>
+        <span class="text-sm text-gray-400 ml-auto">共 {{ total }} 篇</span>
+    </div>
+
+    <!-- 文章列表 -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50">
+                    <tr class="text-left text-gray-500">
+                        <th class="py-3 px-3 w-10"><input type="checkbox" id="select-all" onchange="toggleSelectAll(this)" class="rounded"></th>
+                        <th class="py-3 px-3">标题</th>
+                        <th class="py-3 px-3 w-24">板块</th>
+                        <th class="py-3 px-3 w-16">字数</th>
+                        <th class="py-3 px-3 w-20">状态</th>
+                        <th class="py-3 px-3 w-16">AI</th>
+                        <th class="py-3 px-3 w-40">时间</th>
+                        <th class="py-3 px-3 w-48">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in articles %}
+                    <tr class="border-b border-gray-50 hover:bg-blue-50/30 article-row" data-id="{{ a.id }}" data-status="{{ a.status }}">
+                        <td class="py-3 px-3"><input type="checkbox" class="article-cb rounded" value="{{ a.id }}"></td>
+                        <td class="py-3 px-3">
+                            <div class="max-w-md truncate text-gray-800 font-medium cursor-pointer hover:text-primary-600" onclick="previewArticle({{ a.id }})">{{ a.title }}</div>
+                            <div class="text-xs text-gray-400 mt-0.5 truncate max-w-md">{{ a.source or a.source_url }}</div>
+                        </td>
+                        <td class="py-3 px-3"><span class="badge badge-info">{{ a.category }}</span></td>
+                        <td class="py-3 px-3 text-gray-500">{{ a.word_count }}</td>
+                        <td class="py-3 px-3">
+                            {% if a.status == 'pending' %}<span class="badge badge-warning">待审核</span>
+                            {% elif a.status == 'ready' %}<span class="badge badge-success">待发布</span>
+                            {% elif a.status == 'published' %}<span class="badge badge-purple">已发布</span>
+                            {% elif a.status == 'rejected' %}<span class="badge badge-danger">已驳回</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-3">
+                            {% if a.ai_corrected %}<span class="text-purple-500" title="AI已纠错"><i class="fas fa-magic"></i></span>
+                            {% else %}<span class="text-gray-300">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-3 text-gray-400 text-xs font-mono whitespace-nowrap">{{ a.created_at }}</td>
+                        <td class="py-3 px-3">
+                            <div class="flex gap-1">
+                                <button onclick="previewArticle({{ a.id }})" class="btn-icon text-primary-600" title="预览"><i class="fas fa-eye"></i></button>
+                                {% if a.status == 'pending' %}
+                                <button onclick="approveArticle({{ a.id }})" class="btn-icon text-green-600" title="通过"><i class="fas fa-check"></i></button>
+                                <button onclick="rejectArticle({{ a.id }})" class="btn-icon text-red-500" title="驳回"><i class="fas fa-times"></i></button>
+                                {% endif %}
+                                <button onclick="deleteArticle({{ a.id }})" class="btn-icon text-gray-400 hover:text-red-500" title="删除"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not articles %}
+                    <tr><td colspan="8" class="py-16 text-center text-gray-400"><i class="fas fa-inbox text-4xl mb-3 block"></i>暂无文章数据</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分页 -->
+        {% if total_pages > 1 %}
+        <div class="px-4 py-3 bg-gray-50 border-t border-gray-100 flex justify-center gap-1">
+            {% for p in range(1, total_pages + 1) %}
+            <a href="?page={{ p }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_category %}&category={{ current_category }}{% endif %}"
+               class="px-3 py-1 rounded text-sm {% if p == page %}bg-primary-600 text-white{% else %}text-gray-600 hover:bg-gray-200{% endif %}">{{ p }}</a>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 文章预览模态框 -->
+<div id="preview-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <h3 id="preview-title" class="text-lg font-bold text-gray-800 truncate"></h3>
+            <button onclick="closePreview()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        <div class="px-6 py-2 bg-gray-50 flex gap-3 text-sm text-gray-500">
+            <span id="preview-category"></span>
+            <span>|</span>
+            <span id="preview-words"></span>
+            <span>|</span>
+            <span id="preview-source"></span>
+        </div>
+        <div id="preview-content" class="px-6 py-4 overflow-y-auto flex-1 prose prose-sm max-w-none"></div>
+        <div id="preview-actions" class="px-6 py-4 border-t border-gray-100 flex justify-end gap-2"></div>
+    </div>
+</div>
+
+<!-- 批量转移模态框 -->
+<div id="transfer-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6">
+        <h3 class="text-lg font-bold text-gray-800 mb-4">批量转移分类</h3>
+        <select id="transfer-category" class="form-select w-full mb-4">
+            {% for cat in categories %}
+            <option value="{{ cat }}">{{ cat }}</option>
+            {% endfor %}
+        </select>
+        <div class="flex justify-end gap-2">
+            <button onclick="closeTransferModal()" class="btn-secondary">取消</button>
+            <button onclick="batchTransfer()" class="btn-primary">确认转移</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function getSelectedIds() {
+        return [...document.querySelectorAll('.article-cb:checked')].map(cb => cb.value);
+    }
+    function toggleSelectAll(el) {
+        document.querySelectorAll('.article-cb').forEach(cb => cb.checked = el.checked);
+    }
+    function filterByCategory(cat) {
+        const url = new URL(location.href);
+        if (cat) url.searchParams.set('category', cat);
+        else url.searchParams.delete('category');
+        location.href = url;
+    }
+
+    async function previewArticle(id) {
+        const resp = await fetch(`/api/articles/${id}`);
+        const a = await resp.json();
+        document.getElementById('preview-title').textContent = a.title;
+        document.getElementById('preview-category').innerHTML = `<span class="badge badge-info">${a.category}</span>`;
+        document.getElementById('preview-words').textContent = `${a.word_count}字`;
+        document.getElementById('preview-source').textContent = a.source || a.source_url || '未知来源';
+        document.getElementById('preview-content').innerHTML = a.content.replace(/\n/g, '<br>');
+
+        let actions = '';
+        if (a.status === 'pending') {
+            actions = `<button onclick="approveArticle(${a.id});closePreview()" class="btn-success"><i class="fas fa-check mr-1"></i>通过</button>
+                       <button onclick="rejectArticle(${a.id});closePreview()" class="btn-danger"><i class="fas fa-times mr-1"></i>驳回</button>`;
+        }
+        document.getElementById('preview-actions').innerHTML = actions;
+        document.getElementById('preview-modal').classList.remove('hidden');
+    }
+    function closePreview() { document.getElementById('preview-modal').classList.add('hidden'); }
+
+    async function approveArticle(id) {
+        await apiPost(`/api/articles/${id}/approve`, new FormData());
+        setTimeout(() => location.reload(), 1000);
+    }
+    async function rejectArticle(id) {
+        if (!confirm('确认驳回？将删除本地归档。')) return;
+        await apiPost(`/api/articles/${id}/reject`, new FormData());
+        setTimeout(() => location.reload(), 1000);
+    }
+    async function deleteArticle(id) {
+        if (!confirm('确认永久删除？')) return;
+        await apiPost(`/api/articles/${id}/delete`, new FormData());
+        setTimeout(() => location.reload(), 1000);
+    }
+
+    async function batchApprove() {
+        const ids = getSelectedIds();
+        if (!ids.length) { showToast('请先勾选文章', 'warning'); return; }
+        const form = new FormData(); form.append('ids', ids.join(','));
+        await apiPost('/api/articles/batch/approve', form);
+        setTimeout(() => location.reload(), 1000);
+    }
+    async function batchReject() {
+        const ids = getSelectedIds();
+        if (!ids.length) { showToast('请先勾选文章', 'warning'); return; }
+        if (!confirm(`确认驳回 ${ids.length} 篇文章？`)) return;
+        const form = new FormData(); form.append('ids', ids.join(','));
+        await apiPost('/api/articles/batch/reject', form);
+        setTimeout(() => location.reload(), 1000);
+    }
+    function showTransferModal() {
+        const ids = getSelectedIds();
+        if (!ids.length) { showToast('请先勾选文章', 'warning'); return; }
+        document.getElementById('transfer-modal').classList.remove('hidden');
+    }
+    function closeTransferModal() { document.getElementById('transfer-modal').classList.add('hidden'); }
+    async function batchTransfer() {
+        const ids = getSelectedIds();
+        const cat = document.getElementById('transfer-category').value;
+        const form = new FormData(); form.append('ids', ids.join(',')); form.append('category', cat);
+        await apiPost('/api/articles/batch/transfer', form);
+        closeTransferModal();
+        setTimeout(() => location.reload(), 1000);
+    }
+</script>
+{% endblock %}

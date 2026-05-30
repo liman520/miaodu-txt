@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}MiaoDuAI{% endblock %} - AI智能文章工作流</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="/static/css/custom.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50:'#eff6ff',100:'#dbeafe',200:'#bfdbfe',300:'#93c5fd',400:'#60a5fa',500:'#3b82f6',600:'#2563eb',700:'#1d4ed8',800:'#1e40af',900:'#1e3a8a' },
+                        success: '#10b981',
+                        danger: '#ef4444',
+                        warning: '#f59e0b',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- 顶部导航 -->
+    <nav class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center space-x-8">
+                    <a href="/" class="flex items-center space-x-2">
+                        <i class="fas fa-robot text-primary-600 text-xl"></i>
+                        <span class="font-bold text-lg text-gray-800">MiaoDuAI</span>
+                    </a>
+                    <div class="hidden md:flex space-x-1">
+                        <a href="/" class="nav-link {% block nav_dashboard %}{% endblock %}">
+                            <i class="fas fa-tachometer-alt mr-1"></i>仪表盘
+                        </a>
+                        <a href="/articles" class="nav-link {% block nav_articles %}{% endblock %}">
+                            <i class="fas fa-file-alt mr-1"></i>文章管理
+                        </a>
+                        <a href="/sources" class="nav-link {% block nav_sources %}{% endblock %}">
+                            <i class="fas fa-globe mr-1"></i>采集源
+                        </a>
+                        <a href="/settings" class="nav-link {% block nav_settings %}{% endblock %}">
+                            <i class="fas fa-cog mr-1"></i>配置
+                        </a>
+                        <a href="/logs" class="nav-link {% block nav_logs %}{% endblock %}">
+                            <i class="fas fa-list-alt mr-1"></i>日志
+                        </a>
+                        <a href="/archives" class="nav-link {% block nav_archives %}{% endblock %}">
+                            <i class="fas fa-archive mr-1"></i>归档
+                        </a>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span id="system-status" class="text-sm text-gray-500">
+                        <i class="fas fa-circle text-success text-xs"></i> 运行中
+                    </span>
+                </div>
+            </div>
+        </div>
+        <!-- 移动端导航 -->
+        <div class="md:hidden border-t border-gray-100 px-2 py-2 flex overflow-x-auto space-x-1">
+            <a href="/" class="nav-link-mobile"><i class="fas fa-tachometer-alt"></i></a>
+            <a href="/articles" class="nav-link-mobile"><i class="fas fa-file-alt"></i></a>
+            <a href="/sources" class="nav-link-mobile"><i class="fas fa-globe"></i></a>
+            <a href="/settings" class="nav-link-mobile"><i class="fas fa-cog"></i></a>
+            <a href="/logs" class="nav-link-mobile"><i class="fas fa-list-alt"></i></a>
+            <a href="/archives" class="nav-link-mobile"><i class="fas fa-archive"></i></a>
+        </div>
+    </nav>
+
+    <!-- 主内容 -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Toast通知 -->
+    <div id="toast-container" class="fixed top-20 right-4 z-50 space-y-2"></div>
+
+    <!-- 加载遮罩 -->
+    <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-lg p-6 flex items-center space-x-3 shadow-xl">
+            <i class="fas fa-spinner fa-spin text-primary-600 text-xl"></i>
+            <span id="loading-text" class="text-gray-700">处理中...</span>
+        </div>
+    </div>
+
+    <script>
+        // Toast通知
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const colors = { success: 'bg-green-500', error: 'bg-red-500', warning: 'bg-yellow-500', info: 'bg-blue-500' };
+            const icons = { success: 'fa-check-circle', error: 'fa-times-circle', warning: 'fa-exclamation-triangle', info: 'fa-info-circle' };
+            const toast = document.createElement('div');
+            toast.className = `${colors[type]} text-white px-4 py-3 rounded-lg shadow-lg flex items-center space-x-2 transform transition-all duration-300 translate-x-full`;
+            toast.innerHTML = `<i class="fas ${icons[type]}"></i><span>${message}</span>`;
+            container.appendChild(toast);
+            requestAnimationFrame(() => toast.classList.remove('translate-x-full'));
+            setTimeout(() => {
+                toast.classList.add('translate-x-full');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // 加载遮罩
+        function showLoading(text = '处理中...') {
+            document.getElementById('loading-text').textContent = text;
+            document.getElementById('loading-overlay').classList.remove('hidden');
+        }
+        function hideLoading() {
+            document.getElementById('loading-overlay').classList.add('hidden');
+        }
+
+        // API请求封装
+        async function apiRequest(url, options = {}) {
+            try {
+                const resp = await fetch(url, options);
+                const data = await resp.json();
+                if (data.success) {
+                    showToast(data.message || '操作成功');
+                } else {
+                    showToast(data.message || '操作失败', 'error');
+                }
+                return data;
+            } catch (e) {
+                showToast('网络请求失败: ' + e.message, 'error');
+                return { success: false, message: e.message };
+            }
+        }
+
+        // POST表单请求
+        async function apiPost(url, formData) {
+            return apiRequest(url, { method: 'POST', body: formData instanceof FormData ? formData : new URLSearchParams(formData) });
+        }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

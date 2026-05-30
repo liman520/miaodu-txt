@@ -1,0 +1,61 @@
+{
+    "categories": {
+        "写作素材": {
+            "daily_max": 5,
+            "daily_min": 1,
+            "enabled": true
+        },
+        "古诗古文": {
+            "daily_max": 3,
+            "daily_min": 1,
+            "enabled": true
+        },
+        "时政热点": {
+            "daily_max": 5,
+            "daily_min": 2,
+            "enabled": true
+        },
+        "家国情怀": {
+            "daily_max": 3,
+            "daily_min": 1,
+            "enabled": true
+        },
+        "科技人文": {
+            "daily_max": 4,
+            "daily_min": 1,
+            "enabled": true
+        },
+        "思辨阅读": {
+            "daily_max": 3,
+            "daily_min": 1,
+            "enabled": true
+        }
+    },
+    "article": {
+        "min_length": 300,
+        "max_length": 3000
+    },
+    "publish_time": "18:00",
+    "auto_schedule": {
+        "collect_cron": "0 6 * * *",
+        "publish_cron": "0 18 * * *",
+        "enabled": false
+    },
+    "llm": {
+        "provider": "deepseek",
+        "api_url": "",
+        "base_url": "",
+        "api_key": "",
+        "model_name": "",
+        "enabled": false
+    },
+    "selenium": {
+        "headless": false,
+        "miaoduai_url": "http://localhost:3000"
+    },
+    "proxy": {
+        "enabled": false,
+        "http": "",
+        "https": ""
+    }
+}

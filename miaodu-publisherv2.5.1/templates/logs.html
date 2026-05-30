@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}运行日志{% endblock %}
+{% block nav_logs %}nav-active{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        <h1 class="text-2xl font-bold text-gray-800"><i class="fas fa-list-alt text-primary-600 mr-2"></i>运行日志</h1>
+        <div class="flex gap-2">
+            <button onclick="refreshLogs()" class="btn-secondary text-sm"><i class="fas fa-sync-alt mr-1"></i>刷新</button>
+            <button onclick="clearLogs()" class="btn-danger text-sm"><i class="fas fa-eraser mr-1"></i>清空日志</button>
+        </div>
+    </div>
+
+    <!-- 级别过滤 -->
+    <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100 flex flex-wrap gap-3 items-center">
+        <span class="text-sm text-gray-500">级别:</span>
+        <a href="/logs" class="filter-chip {% if not current_level %}active{% endif %}">全部</a>
+        <a href="/logs?level=INFO" class="filter-chip {% if current_level == 'INFO' %}active{% endif %}">INFO</a>
+        <a href="/logs?level=WARNING" class="filter-chip {% if current_level == 'WARNING' %}active{% endif %}">WARNING</a>
+        <a href="/logs?level=ERROR" class="filter-chip {% if current_level == 'ERROR' %}active{% endif %}">ERROR</a>
+        <span class="text-sm text-gray-400 ml-auto">共 {{ logs | length }} 条</span>
+    </div>
+
+    <!-- 日志表格 -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50">
+                    <tr class="text-left text-gray-500">
+                        <th class="py-3 px-3 w-44">时间</th>
+                        <th class="py-3 px-3 w-20">级别</th>
+                        <th class="py-3 px-3 w-28">模块</th>
+                        <th class="py-3 px-3">消息</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr class="border-b border-gray-50 hover:bg-gray-50 log-row" data-level="{{ log.level }}">
+                        <td class="py-2 px-3 text-gray-400 font-mono text-xs whitespace-nowrap">{{ log.created_at }}</td>
+                        <td class="py-2 px-3">
+                            {% if log.level == 'ERROR' %}
+                            <span class="inline-flex items-center gap-1 text-red-600 bg-red-50 px-2 py-0.5 rounded-full text-xs font-medium"><i class="fas fa-times-circle"></i> ERROR</span>
+                            {% elif log.level == 'WARNING' %}
+                            <span class="inline-flex items-center gap-1 text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded-full text-xs font-medium"><i class="fas fa-exclamation-triangle"></i> WARN</span>
+                            {% else %}
+                            <span class="inline-flex items-center gap-1 text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full text-xs font-medium"><i class="fas fa-info-circle"></i> INFO</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-2 px-3 text-gray-500 font-mono text-xs">{{ log.module }}</td>
+                        <td class="py-2 px-3 text-gray-700">{{ log.message }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% if not logs %}
+                    <tr><td colspan="4" class="py-16 text-center text-gray-400"><i class="fas fa-clipboard-list text-4xl mb-3 block"></i>暂无日志</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function refreshLogs() { location.reload(); }
+    async function clearLogs() {
+        if (!confirm('确认清空所有日志？')) return;
+        await apiPost('/api/logs/clear', new FormData());
+        setTimeout(() => location.reload(), 1000);
+    }
+</script>
+{% endblock %}
