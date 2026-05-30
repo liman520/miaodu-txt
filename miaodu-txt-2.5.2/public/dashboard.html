@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>新闻管理平台</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="dashboard">
+    <!-- Navbar -->
+    <nav class="navbar">
+      <div class="navbar-brand">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
+        </svg>
+        新闻管理平台
+      </div>
+      <div class="navbar-actions">
+        <span class="navbar-user" id="navUser"></span>
+        <button class="btn btn-ghost btn-sm" onclick="switchPage('settings')" title="设置">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4m0 14v4m-8.66-2.34l2.83-2.83m11.31-11.31l2.83-2.83M1 12h4m14 0h4M4.34 4.34l2.83 2.83m11.31 11.31l2.83 2.83"/></svg>
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="logout()" title="退出">退出</button>
+      </div>
+    </nav>
+
+    <div class="layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-item active" data-page="articles" onclick="switchPage('articles')">
+          <span>📰</span> 新闻列表
+        </div>
+        <div class="sidebar-item" data-page="settings" onclick="switchPage('settings')">
+          <span>⚙️</span> 系统设置
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <!-- Articles Page -->
+        <section id="page-articles" class="page-section active">
+          <div class="page-header">
+            <h1 class="page-title">📰 新闻管理</h1>
+            <div style="display:flex;gap:10px;">
+              <button class="btn btn-primary" onclick="startScrape()" id="scrapeBtn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.22-8.56"/><path d="M21 3v6h-6"/></svg>
+                开始采集
+              </button>
+              <button class="btn btn-success" onclick="batchPublish()" id="batchBtn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                批量发布
+              </button>
+            </div>
+          </div>
+
+          <!-- Status Filter Tabs -->
+          <div class="status-tabs" id="statusTabs">
+            <div class="status-tab active" data-status="" onclick="filterByStatus(this, '')">全部</div>
+            <div class="status-tab" data-status="pending" onclick="filterByStatus(this, 'pending')">待审核</div>
+            <div class="status-tab" data-status="approved" onclick="filterByStatus(this, 'approved')">待发布</div>
+            <div class="status-tab" data-status="published" onclick="filterByStatus(this, 'published')">已发布</div>
+            <div class="status-tab" data-status="rejected" onclick="filterByStatus(this, 'rejected')">已驳回</div>
+          </div>
+
+          <!-- Article List -->
+          <div id="articleList" class="article-list"></div>
+
+          <!-- Pagination -->
+          <div id="pagination" class="pagination"></div>
+        </section>
+
+        <!-- Settings Page -->
+        <section id="page-settings" class="page-section">
+          <div class="page-header">
+            <h1 class="page-title">⚙️ 系统设置</h1>
+          </div>
+          <div class="settings-section">
+            <div class="settings-group">
+              <h3>发布配置</h3>
+              <div class="form-group">
+                <label>发布目标URL</label>
+                <input type="text" id="settingPublishUrl" placeholder="http://localhost:3000/">
+              </div>
+              <div class="form-group">
+                <label>发布间隔（秒）</label>
+                <input type="number" id="settingDelay" min="1" max="60" placeholder="3">
+              </div>
+              <button class="btn btn-primary" onclick="saveSettings()">保存设置</button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Article Detail Modal -->
+  <div class="modal-overlay" id="modalOverlay" onclick="closeModalOutside(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modalTitle"></h2>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-meta">
+          <span id="modalSource" class="tag"></span>
+          <span id="modalCategory" class="tag tag-category"></span>
+          <span id="modalStatus" class="badge"></span>
+          <span id="modalTime" class="time-text"></span>
+        </div>
+        <div class="form-group" style="margin-bottom:16px">
+          <label>修改分类</label>
+          <select id="modalCategorySelect" onchange="updateArticleCategory()">
+            <option value="时政热点">时政热点</option>
+            <option value="写作素材">写作素材</option>
+          </select>
+        </div>
+        <div id="modalContent" class="modal-content"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal()">关闭</button>
+        <button class="btn btn-danger" id="modalRejectBtn" onclick="rejectFromModal()">驳回</button>
+        <button class="btn btn-success" id="modalApproveBtn" onclick="approveFromModal()">审核通过</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
